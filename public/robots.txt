@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://askhub.aihubfordevelopment.org/sitemap.xml
