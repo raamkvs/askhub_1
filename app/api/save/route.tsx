@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  const { responses, sessionId, email } = await req.json()
+  const { responses, sessionId, email } = await req.json();
 
   const fieldMap: Record<string, string> = {
     country: "fldpmAdlHqwe9PsCS",
@@ -13,20 +13,20 @@ export async function POST(req: Request) {
     "ai-goals": "fldjAyOibMPBESy3Y",
     "team-size": "fld0btfsVQ4gCxiO1",
     "compute-experience": "fld1YpOi7NBcyO59C",
-  }
+  };
 
   const fields: Record<string, any> = {
     fldPSqbodvtYcTqc1: sessionId,
     fldrxV7JnxDL7HR1s: email || `${sessionId}@placeholder.ai`, // Use actual email if provided
     fldDEhp5uQe7DHjIk: new Date().toISOString(),
-  }
+  };
 
   responses.forEach((r: any) => {
-    const fieldId = fieldMap[r.questionId]
+    const fieldId = fieldMap[r.questionId];
     if (fieldId) {
-      fields[fieldId] = r.answerText
+      fields[fieldId] = r.answerText;
     }
-  })
+  });
 
   try {
     const res = await fetch(
@@ -39,12 +39,15 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({ fields, typecast: true }),
       },
-    )
+    );
 
-    if (!res.ok) throw new Error(await res.text())
-    return NextResponse.json({ success: true })
+    if (!res.ok) throw new Error(await res.text());
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Airtable save failed", error)
-    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+    console.error("Airtable save failed", error);
+    return NextResponse.json(
+      { success: false, error: String(error) },
+      { status: 500 },
+    );
   }
 }

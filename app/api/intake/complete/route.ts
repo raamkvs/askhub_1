@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { derivePathway } from "@/lib/pathway"
 import { getSiteUrl } from "@/lib/auth/site-url"
-import { sendPasswordSetupEmail } from "@/lib/email/mailersend"
+import { sendPasswordSetupEmail } from "@/lib/email/resend"
+import { touchProfile } from "@/lib/auth/profile"
 
 function generateTempPassword(length = 12): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
@@ -95,6 +96,8 @@ export async function POST(req: Request) {
 
     if (!userId) throw new Error("Unable to resolve user id")
 
+    await touchProfile(admin, userId)
+
     // ── Step 7: save intake_session ───────────────────────────────────────
     console.log("[INTAKE] Step 7 — Saving intake_session...")
     const { error: intakeError } = await admin.from("intake_sessions").upsert(
@@ -120,17 +123,17 @@ export async function POST(req: Request) {
     const resetUrl = `${getSiteUrl()}/auth/set-password?token=${resetToken}`
     console.log("[INTAKE] Step 8 — Token created ✓")
 
-    // ── Step 9: send email via MailerSend ─────────────────────────────────
+    // ── Step 9: send email via Resend ─────────────────────────────────────
     let emailSent = false
     let emailError: string | undefined
-    console.log("[INTAKE] Step 9 — Sending setup email via MailerSend...")
+    console.log("[INTAKE] Step 9 — Sending setup email via Resend...")
     try {
       await sendPasswordSetupEmail(normalizedEmail, tempPassword, resetUrl)
       emailSent = true
       console.log("[INTAKE] Step 9 — Email sent ✓")
     } catch (mailErr) {
       emailError = String(mailErr)
-      console.log("[INTAKE] ✗ MailerSend failed:", emailError)
+      console.log("[INTAKE] ✗ Resend failed:", emailError)
     }
 
     // ── Step 10: Airtable sync (non-fatal) ────────────────────────────────

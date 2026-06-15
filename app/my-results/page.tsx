@@ -2,19 +2,15 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { RecommendationResults } from "@/components/recommendation-results"
-
-interface UserResponse {
-  questionId: string
-  question: string
-  answer: string
-  answerText: string
-}
+import { normalizeResponses, type IntakeResponse } from "@/lib/intake/responses"
 
 interface IntakeSession {
   session_id: string
-  responses: UserResponse[]
+  responses: IntakeResponse[]
+  resource_state?: {
+    selectedHelpOption?: string | null
+  } | null
 }
 
 type PageState = "loading" | "ready" | "no-results" | "unauthenticated"
@@ -26,37 +22,37 @@ export default function MyResultsPage() {
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient()
+      try {
+        const res = await fetch("/api/intake/session")
+        if (res.status === 401) {
+          setState("unauthenticated")
+          return
+        }
 
-      // Auth check
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setState("unauthenticated")
-        return
-      }
+        const result = await res.json()
+        if (!result.success || !result.session) {
+          console.error("[MY-RESULTS] No session:", result.error)
+          setState("no-results")
+          return
+        }
 
-      // Load latest intake session
-      const { data, error } = await supabase
-        .from("intake_sessions")
-        .select("session_id, responses")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
+        const responses = normalizeResponses(result.session.responses)
+        if (responses.length === 0) {
+          console.error("[MY-RESULTS] Session has no responses")
+          setState("no-results")
+          return
+        }
 
-      if (error) {
-        console.error("[MY-RESULTS] DB error:", error.message)
+        setSession({
+          session_id: result.session.session_id,
+          responses,
+          resource_state: result.session.resource_state ?? null,
+        })
+        setState("ready")
+      } catch (error) {
+        console.error("[MY-RESULTS] Load failed:", error)
         setState("no-results")
-        return
       }
-
-      if (!data) {
-        setState("no-results")
-        return
-      }
-
-      setSession(data as IntakeSession)
-      setState("ready")
     }
 
     void load()
@@ -101,6 +97,8 @@ export default function MyResultsPage() {
       responses={session.responses}
       sessionId={session.session_id}
       onBack={() => router.push("/")}
+      suppressAuthModal
+      initialResourceState={session.resource_state ?? undefined}
     />
   )
 }

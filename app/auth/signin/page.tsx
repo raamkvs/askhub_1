@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -77,7 +78,12 @@ export default function SignInPage() {
               />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Password</label>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <Link href="/auth/forgot-password" className="text-xs text-[#0071BC] hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <Input
                 type="password"
                 value={password}

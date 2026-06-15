@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { CheckCircle, ArrowRight, Menu, X, ChevronDown } from "lucide-react"
 import { SignupModal } from "@/components/signup-modal"
+import { AuthNavActions } from "@/components/auth-nav-actions"
+import { useAuth } from "@/hooks/use-auth"
 
 interface LandingPageProps {
   onLaunchCoach: (trigger: string) => void
@@ -12,6 +14,7 @@ export function LandingPage({ onLaunchCoach }: LandingPageProps) {
   const [showSignupModal, setShowSignupModal] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showProgrammesDropdown, setShowProgrammesDropdown] = useState(false)
+  const { isAuthenticated } = useAuth()
 
   // Add click outside handler to close dropdown
   useEffect(() => {
@@ -164,14 +167,9 @@ export function LandingPage({ onLaunchCoach }: LandingPageProps) {
               </button>
             </div>
 
-            {/* Right - Sign in */}
+            {/* Right - Auth */}
             <div className="hidden md:flex items-center gap-3">
-              <a
-                href="/auth/signin"
-                className="rounded-lg border border-[#0071BC] px-4 py-2 text-sm font-montserrat font-bold text-[#0071BC] hover:bg-[#0071BC] hover:text-white transition-colors"
-              >
-                Sign in
-              </a>
+              <AuthNavActions />
             </div>
           </div>
 
@@ -261,13 +259,7 @@ export function LandingPage({ onLaunchCoach }: LandingPageProps) {
                 >
                   AskHub
                 </button>
-                <a
-                  href="/auth/signin"
-                  className="inline-block rounded-lg border border-[#0071BC] px-4 py-2 text-sm font-montserrat font-bold text-[#0071BC] hover:bg-[#0071BC] hover:text-white transition-colors text-center"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Sign in
-                </a>
+                <AuthNavActions layout="mobile" />
               </div>
             </div>
           )}
@@ -293,12 +285,21 @@ export function LandingPage({ onLaunchCoach }: LandingPageProps) {
                 Whether you're just curious about AI or ready to scale your solution, our AskHub will guide you to the
                 resources, partners, and our accelerator programmes tailored for African innovators.
               </p>
-              <button
-                onClick={() => onLaunchCoach("fit-finder")}
-                className="bg-[#0071BC] hover:bg-[#005A94] text-white font-montserrat font-bold px-6 py-3 rounded-lg"
-              >
-                Try AskHub →
-              </button>
+              {isAuthenticated ? (
+                <a
+                  href="/my-results"
+                  className="inline-block bg-[#0071BC] hover:bg-[#005A94] text-white font-montserrat font-bold px-6 py-3 rounded-lg"
+                >
+                  Go to My results →
+                </a>
+              ) : (
+                <button
+                  onClick={() => onLaunchCoach("fit-finder")}
+                  className="bg-[#0071BC] hover:bg-[#005A94] text-white font-montserrat font-bold px-6 py-3 rounded-lg"
+                >
+                  Try AskHub →
+                </button>
+              )}
             </div>
           </div>
 

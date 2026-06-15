@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { RecommendationResults } from "@/components/recommendation-results"
+import { IntakeReview } from "@/components/intake-review"
+import { AuthNavActions } from "@/components/auth-nav-actions"
 import { v4 as uuidv4 } from "uuid"
 import { Menu, X, ChevronDown } from "lucide-react"
 
@@ -297,6 +299,16 @@ const aiGoalsOptions = [
   { id: "explore", text: "Explore and learn more about AI before deciding", value: "explore" },
 ]
 
+// Primary need options (resource matching)
+const primaryNeedOptions = [
+  { id: "compute", text: "Compute — cloud credits, GPUs, infrastructure", value: "Compute" },
+  { id: "training", text: "Training — courses, skills, certifications", value: "Training" },
+  { id: "funding", text: "Funding — grants, investment, financial support", value: "Funding" },
+  { id: "partners", text: "Partners — experts, communities, networks", value: "Partners" },
+  { id: "accelerator", text: "Accelerator — programmes to grow my startup", value: "Accelerator" },
+  { id: "not-sure", text: "I'm not sure yet", value: "I'm not sure yet" },
+]
+
 // Compute Experience Options
 const computeExperienceOptions = [
   { id: "what", text: "What's compute?", value: "what" },
@@ -319,6 +331,9 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [responses, setResponses] = useState<UserResponse[]>([])
   const [isComplete, setIsComplete] = useState(false)
+  const [showReview, setShowReview] = useState(false)
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [submitError, setSubmitError] = useState<string | undefined>()
   const [isExistingUser, setIsExistingUser] = useState(false)
   const [otpSent, setOtpSent] = useState(false)
   const [otpError, setOtpError] = useState<string | undefined>()
@@ -489,6 +504,11 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
           default:
             return "Thank you for your response!"
         }
+      case "primary-need":
+        if (value === "I'm not sure yet") {
+          return "No problem — we'll put together a balanced starter set of resources for you."
+        }
+        return "Got it — we'll prioritise resources that match this need."
       default:
         return "Thank you for your response!"
     }
@@ -590,6 +610,9 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
         ) {
           questionId = "team-size"
           question = "What's your team size for this AI project?"
+        } else if (!currentResponses.find((r) => r.questionId === "primary-need")) {
+          questionId = "primary-need"
+          question = "What do you need most right now?"
         }
       }
 
@@ -631,12 +654,16 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
     }
 
     if (isInfrastructureBuilder(currentResponses)) {
-      return Boolean(currentResponses.find((r) => r.questionId === "build-goal"))
+      return Boolean(
+        currentResponses.find((r) => r.questionId === "build-goal") &&
+          currentResponses.find((r) => r.questionId === "primary-need"),
+      )
     }
 
     const hasRole = currentResponses.find((r) => r.questionId === "role")
     const hasBuildGoal = currentResponses.find((r) => r.questionId === "build-goal")
     const hasAIJourney = currentResponses.find((r) => r.questionId === "ai-journey")
+    const hasPrimaryNeed = currentResponses.find((r) => r.questionId === "primary-need")
     const hasAIExperience = currentResponses.find((r) => r.questionId === "ai-experience")
     const hasLearningHistory = currentResponses.find((r) => r.questionId === "learning-history")
     const hasAIGoals = currentResponses.find((r) => r.questionId === "ai-goals")
@@ -660,6 +687,10 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
     }
 
     if (shouldShowTeamSize(currentResponses) && !hasTeamSize) {
+      return false
+    }
+
+    if (!hasPrimaryNeed) {
       return false
     }
 
@@ -758,81 +789,35 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
   const proceedToNextStep = (currentResponses: UserResponse[]) => {
     const hasEmail = currentResponses.find((r) => r.questionId === "email")
 
-    const finishIntake = (responsesToSave: UserResponse[]) => {
-      setTimeout(() => {
-        addMessage(
-          "Fantastic! I've got everything I need. Let me analyze your responses and create your personalized recommendation...",
-        )
-
-        const saveData = async () => {
-          try {
-            const email = responsesToSave.find((r) => r.questionId === "email")?.answerText
-            console.log("[CONVERSATION] Step A — Calling /api/intake/complete for:", email)
-
-            const response = await fetch("/api/intake/complete", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                responses: responsesToSave,
-                sessionId,
-                email,
-                trigger,
-              }),
-            })
-            const result = await response.json()
-            console.log("[CONVERSATION] Step B — /api/intake/complete response:", { status: response.status, result })
-
-            if (result.success) {
-              setIsExistingUser(Boolean(result.isExistingUser))
-              setOtpSent(Boolean(result.otpSent))
-              setOtpError(result.otpError)
-              console.log("[CONVERSATION] Step C — Auth setup:", {
-                isExistingUser: result.isExistingUser,
-                otpSent: result.otpSent,
-                otpError: result.otpError,
-              })
-            } else {
-              console.warn("[CONVERSATION] ✗ Intake complete returned success:false —", result.error)
-            }
-            // Persist intake state so it survives the magic-link redirect back to /
-            if (typeof window !== "undefined") {
-              sessionStorage.setItem(
-                "ask-hub-pending-results",
-                JSON.stringify({ responses: responsesToSave, sessionId, trigger }),
-              )
-            }
-            setIsComplete(true)
-            console.log("[CONVERSATION] Step D — isComplete set to true, showing recommendations")
-          } catch (error) {
-            console.error("[CONVERSATION] ✗ Failed to complete intake:", error)
-          }
-        }
-
-        setTimeout(() => {
-          saveData()
-        }, 1000)
-      }, 1000)
+    const goToReview = (responsesToSave: UserResponse[]) => {
+      setResponses(responsesToSave)
+      setSubmitError(undefined)
+      setShowReview(true)
+      window.scrollTo({ top: 0, behavior: "smooth" })
     }
 
     // Check if user is Infrastructure Builder - if so, skip to completion after build-goal
     if (isInfrastructureBuilder(currentResponses)) {
       const hasBuildGoal = currentResponses.find((r) => r.questionId === "build-goal")
+      const hasPrimaryNeed = currentResponses.find((r) => r.questionId === "primary-need")
       if (hasBuildGoal) {
+        if (!hasPrimaryNeed) {
+          showPrimaryNeedQuestion()
+          return
+        }
         if (!hasEmail) {
           showEmailQuestion()
           return
         }
-        finishIntake(currentResponses)
+        goToReview(currentResponses)
         return
       } else {
-        // Show build-goal question for Infrastructure Builders
         showBuildGoalQuestion()
         return
       }
     }
 
     // Check what questions we still need to ask in order for non-Infrastructure Builders
-    const hasCountry = currentResponses.find((r) => r.questionId === "country")
     const hasRole = currentResponses.find((r) => r.questionId === "role")
     const hasBuildGoal = currentResponses.find((r) => r.questionId === "build-goal")
     const hasAIJourney = currentResponses.find((r) => r.questionId === "ai-journey")
@@ -841,6 +826,7 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
     const hasAIGoals = currentResponses.find((r) => r.questionId === "ai-goals")
     const hasComputeExperience = currentResponses.find((r) => r.questionId === "compute-experience")
     const hasTeamSize = currentResponses.find((r) => r.questionId === "team-size")
+    const hasPrimaryNeed = currentResponses.find((r) => r.questionId === "primary-need")
 
     // Follow the specific order: country -> role -> build-goal -> ai-journey -> then conditional questions
     if (!hasRole) {
@@ -859,10 +845,61 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
       showComputeExperienceQuestion()
     } else if (shouldShowTeamSize(currentResponses) && !hasTeamSize) {
       showTeamSizeQuestion()
+    } else if (!hasPrimaryNeed) {
+      showPrimaryNeedQuestion()
     } else if (!hasEmail) {
       showEmailQuestion()
     } else {
-      finishIntake(currentResponses)
+      goToReview(currentResponses)
+    }
+  }
+
+  const handleReviewSubmit = () => {
+    setIsSubmittingReview(true)
+    setSubmitError(undefined)
+    void submitIntakeFromReview()
+  }
+
+  const submitIntakeFromReview = async () => {
+    try {
+      const email = responses.find((r) => r.questionId === "email")?.answerText
+      console.log("[CONVERSATION] Calling /api/intake/complete for:", email)
+
+      const response = await fetch("/api/intake/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          responses,
+          sessionId,
+          email,
+          trigger,
+        }),
+      })
+      const result = await response.json()
+      console.log("[CONVERSATION] /api/intake/complete response:", { status: response.status, result })
+
+      if (result.success) {
+        setIsExistingUser(Boolean(result.isExistingUser))
+        setOtpSent(Boolean(result.emailSent))
+        setOtpError(result.emailError)
+      } else {
+        throw new Error(result.error ?? "Unable to create your profile")
+      }
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(
+          "ask-hub-pending-results",
+          JSON.stringify({ responses, sessionId, trigger }),
+        )
+      }
+
+      setShowReview(false)
+      setIsComplete(true)
+    } catch (error) {
+      console.error("[CONVERSATION] Failed to complete intake:", error)
+      setSubmitError(error instanceof Error ? error.message : "Something went wrong. Please try again.")
+    } finally {
+      setIsSubmittingReview(false)
     }
   }
 
@@ -926,6 +963,17 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
     }, 200)
   }
 
+  const showPrimaryNeedQuestion = () => {
+    setTimeout(() => {
+      addMessage(
+        "What do you need most right now?\n\nChoose the option that best describes your top priority:",
+        "bot",
+        primaryNeedOptions,
+      )
+      setCurrentQuestionAnswered(false)
+    }, 200)
+  }
+
   const showEmailQuestion = () => {
     setTimeout(() => {
       addMessage(
@@ -958,6 +1006,18 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
         isExistingUser={isExistingUser}
         otpSent={otpSent}
         otpError={otpError}
+      />
+    )
+  }
+
+  if (showReview) {
+    return (
+      <IntakeReview
+        responses={responses}
+        onSubmit={handleReviewSubmit}
+        onBack={() => setShowReview(false)}
+        isSubmitting={isSubmittingReview}
+        submitError={submitError}
       />
     )
   }
@@ -1072,8 +1132,10 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
               </button>
             </div>
 
-            {/* Right - Empty space for balance */}
-            <div className="hidden md:block w-24"></div>
+            {/* Right - Auth */}
+            <div className="hidden md:flex items-center">
+              <AuthNavActions />
+            </div>
           </div>
         </div>
       </header>
@@ -1166,6 +1228,7 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
               >
                 AskHub
               </button>
+              <AuthNavActions layout="mobile" />
             </div>
           </div>
         </div>

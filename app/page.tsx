@@ -34,28 +34,28 @@ export default function CoachingPlatform() {
     setRestoredState(null)
   }
 
-  // On mount: if user returned from magic-link and has saved intake state, restore recommendations
+  // On mount: check auth and restore pending results if applicable
   useEffect(() => {
-    const saved = sessionStorage.getItem(STORAGE_KEY)
-    if (!saved) {
-      setAuthChecked(true)
-      return
-    }
+    const supabase = createClient()
 
-    try {
-      const parsed: SavedIntakeState = JSON.parse(saved)
-      const supabase = createClient()
-      supabase.auth.getUser().then(({ data: { user } }) => {
-        if (user) {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      const saved = sessionStorage.getItem(STORAGE_KEY)
+
+      if (saved && user) {
+        try {
+          const parsed: SavedIntakeState = JSON.parse(saved)
           sessionStorage.removeItem(STORAGE_KEY)
           setRestoredState(parsed)
+        } catch {
+          sessionStorage.removeItem(STORAGE_KEY)
         }
-        setAuthChecked(true)
-      })
-    } catch {
-      sessionStorage.removeItem(STORAGE_KEY)
+      }
+
       setAuthChecked(true)
     }
+
+    void init()
   }, [])
 
   // Show nothing until auth check completes (prevents flash of landing page)
