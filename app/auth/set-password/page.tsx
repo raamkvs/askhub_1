@@ -1,10 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createClient } from "@/lib/supabase/client"
+import { resolvePostAuthPath } from "@/lib/auth/post-auth-path"
+import { PasswordRequirementsList } from "@/components/password-requirements-list"
+import { getPasswordValidationError, isPasswordValid } from "@/lib/auth/password"
 
 // ── Mode A: token in URL — validate and create session ───────────────────────
 function TokenValidation({ token }: { token: string }) {
@@ -123,8 +126,15 @@ function PasswordForm() {
     event.preventDefault()
     setError(null)
 
-    if (password.length < 8) { setError("Password must be at least 8 characters."); return }
-    if (password !== confirmPassword) { setError("Passwords do not match."); return }
+    const passwordError = getPasswordValidationError(password)
+    if (passwordError) {
+      setError(passwordError)
+      return
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.")
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -135,8 +145,9 @@ function PasswordForm() {
       })
       const result = await res.json()
       if (!res.ok || !result.success) throw new Error(result.error || "Unable to save password")
-      console.log("[SET-PASSWORD] ✓ Password saved — redirecting to /my-results")
-      router.push("/my-results")
+      console.log("[SET-PASSWORD] ✓ Password saved — resolving redirect")
+      const path = await resolvePostAuthPath()
+      router.push(path)
       router.refresh()
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to save password")
@@ -156,9 +167,10 @@ function PasswordForm() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-white px-4 font-montserrat">
       <div className="w-full max-w-md rounded-lg border border-gray-200 p-6 shadow-sm">
-        <h1 className="mb-2 text-xl font-bold text-black">Create your AskHub password</h1>
+        <h1 className="mb-2 text-xl font-bold text-black">Set your AskHub password</h1>
         <p className="mb-6 text-sm text-gray-600">
-          Choose a password you&apos;ll use to sign in and access your saved profile, pathway, and recommendations.
+          Choose a secure password you&apos;ll use to sign in and access your saved profile, pathway, and
+          recommendations.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -168,10 +180,13 @@ function PasswordForm() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
+              placeholder="Create a password"
               required
-              minLength={8}
+              autoComplete="new-password"
             />
+            <div className="mt-2">
+              <PasswordRequirementsList password={password} />
+            </div>
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">Confirm password</label>
@@ -181,14 +196,14 @@ function PasswordForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Re-enter your password"
               required
-              minLength={8}
+              autoComplete="new-password"
             />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button
             type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-[#0071BC] font-bold text-white hover:bg-[#005A94]"
+            disabled={isSubmitting || !isPasswordValid(password) || password !== confirmPassword}
+            className="w-full bg-[#0071BC] font-bold text-white hover:bg-[#005A94] disabled:bg-gray-300 disabled:text-gray-500"
           >
             {isSubmitting ? "Saving…" : "Save password and continue"}
           </Button>
@@ -199,7 +214,7 @@ function PasswordForm() {
 }
 
 // ── Root: decide which mode ────────────────────────────────────────────────────
-export default function SetPasswordPage() {
+function SetPasswordContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
   const verified = searchParams.get("verified")
@@ -220,5 +235,22 @@ export default function SetPasswordPage() {
         </Button>
       </div>
     </div>
+  )
+}
+
+export default function SetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-white px-4 font-montserrat">
+          <div className="w-full max-w-md rounded-lg border border-gray-200 p-6 shadow-sm text-center">
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[#0071BC] border-t-transparent" />
+            <p className="text-sm text-gray-600">Loading…</p>
+          </div>
+        </div>
+      }
+    >
+      <SetPasswordContent />
+    </Suspense>
   )
 }

@@ -1,7 +1,14 @@
-const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email"
+import { Resend } from "resend"
+
 const FROM_EMAIL =
-  process.env.MAILERSEND_FROM_EMAIL ?? "noreply@test-3m5jgrorn6dgdpyo.mlsender.net"
-const FROM_NAME = "AskHub"
+  process.env.RESEND_FROM_EMAIL ?? "noreply@ask.aihubfordevelopment.org"
+const FROM = `AskHub <${FROM_EMAIL}>`
+
+function getResend(): Resend {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) throw new Error("RESEND_API_KEY is not set")
+  return new Resend(apiKey)
+}
 
 interface SendEmailOptions {
   to: string
@@ -10,30 +17,45 @@ interface SendEmailOptions {
   text: string
 }
 
-async function sendEmail(opts: SendEmailOptions): Promise<void> {
-  const apiKey = process.env.MailerSend_API_KEY
-  if (!apiKey) throw new Error("MailerSend_API_KEY is not set")
+function isTransientNetworkError(message: string): boolean {
+  return (
+    message.includes("could not be resolved") ||
+    message.includes("fetch failed") ||
+    message.includes("ECONNRESET") ||
+    message.includes("ETIMEDOUT") ||
+    message.includes("ENOTFOUND") ||
+    message.includes("EAI_AGAIN")
+  )
+}
 
-  const res = await fetch(MAILERSEND_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      from: { email: FROM_EMAIL, name: FROM_NAME },
-      to: [{ email: opts.to }],
+async function sendEmail(opts: SendEmailOptions): Promise<void> {
+  const resend = getResend()
+  const maxAttempts = 3
+  let lastMessage = "Unknown Resend error"
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { error } = await resend.emails.send({
+      from: FROM,
+      to: [opts.to],
       subject: opts.subject,
       html: opts.html,
       text: opts.text,
-    }),
-  })
+    })
 
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`MailerSend error ${res.status}: ${body}`)
+    if (!error) return
+
+    lastMessage = error.message
+
+    if (attempt < maxAttempts && isTransientNetworkError(lastMessage)) {
+      console.warn(`[RESEND] Attempt ${attempt} failed (${lastMessage}), retrying...`)
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
+      continue
+    }
+
+    throw new Error(`Resend error: ${lastMessage}`)
   }
+
+  throw new Error(`Resend error: ${lastMessage}`)
 }
 
 export async function sendPasswordSetupEmail(

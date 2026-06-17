@@ -10,7 +10,9 @@
     "health-check": "bash scripts/health-check.sh",
     "lint": "next lint",
     "start": "next start",
-    "start:prod": "NODE_ENV=production next start"
+    "start:prod": "NODE_ENV=production next start",
+    "test:matching": "tsx tests/matching/run.ts",
+    "test:matching:live": "tsx tests/matching/run.ts --live"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -61,6 +63,7 @@
     "react-hook-form": "^7.54.1",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.0",
+    "resend": "^6.12.4",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
@@ -74,6 +77,7 @@
     "@types/react-dom": "^18",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.22.4",
     "typescript": "5.7.3"
   }
 }

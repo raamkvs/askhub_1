@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getPasswordValidationError } from "@/lib/auth/password"
+import { touchProfile } from "@/lib/auth/profile"
 
 export async function POST(req: Request) {
   console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -8,8 +10,9 @@ export async function POST(req: Request) {
   try {
     const { password } = await req.json()
 
-    if (!password || String(password).length < 8) {
-      return NextResponse.json({ success: false, error: "Password must be at least 8 characters" }, { status: 400 })
+    const passwordError = getPasswordValidationError(password ? String(password) : "")
+    if (passwordError) {
+      return NextResponse.json({ success: false, error: passwordError }, { status: 400 })
     }
 
     const supabase = await createClient()
@@ -38,6 +41,9 @@ export async function POST(req: Request) {
       .eq("user_id", user.id)
       .is("used_at", null)
     console.log("[UPDATE-PASSWORD] ✓ Reset tokens invalidated")
+
+    await touchProfile(admin, user.id)
+    console.log("[UPDATE-PASSWORD] ✓ Profile updated_at touched")
 
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
     return NextResponse.json({ success: true })

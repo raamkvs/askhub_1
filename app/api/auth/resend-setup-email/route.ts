@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getSiteUrl } from "@/lib/auth/site-url"
-import { sendPasswordSetupEmail } from "@/lib/email/mailersend"
+import { sendPasswordSetupEmail } from "@/lib/email/resend"
+import { touchProfile } from "@/lib/auth/profile"
 
 function generateTempPassword(length = 12): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789"
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
 
     const resetUrl = `${getSiteUrl()}/auth/set-password?token=${resetRow.token}`
     await sendPasswordSetupEmail(normalizedEmail, tempPassword, resetUrl)
+    await touchProfile(admin, profile.id)
 
     console.log("[RESEND-SETUP] ✓ Resent to:", normalizedEmail)
     return NextResponse.json({ success: true })
