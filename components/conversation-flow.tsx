@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { RecommendationResults } from "@/components/recommendation-results"
 import { IntakeReview } from "@/components/intake-review"
+import { PhaseOneComplete } from "@/components/phase-one-complete"
 import { AuthNavActions } from "@/components/auth-nav-actions"
+import { AiHubLogoLink } from "@/components/ai-hub-logo-link"
 import { v4 as uuidv4 } from "uuid"
 import { Menu, X, ChevronDown } from "lucide-react"
 
@@ -504,6 +505,8 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
           default:
             return "Thank you for your response!"
         }
+      case "full-name":
+        return "Thanks! We'll use this on your AskHub profile."
       case "primary-need":
         if (value === "I'm not sure yet") {
           return "No problem — we'll put together a balanced starter set of resources for you."
@@ -580,40 +583,15 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
       } else if (!hasBuildGoal) {
         questionId = "build-goal"
         question = "What do you want to build or create with AI?"
-      } else if (!hasAIJourney) {
+      } else if (!hasAIJourney && !isInfrastructureBuilder(responses)) {
         questionId = "ai-journey"
         question = "What stage are you at in your AI journey?"
-      } else {
-        // After the main 4 questions, determine next question based on previous responses
-        const currentResponses = [...responses]
-        if (
-          shouldShowLearningHistory(currentResponses) &&
-          !currentResponses.find((r) => r.questionId === "learning-history")
-        ) {
-          questionId = "learning-history"
-          question = "Have you done any learning about AI before?"
-        } else if (shouldShowAIGoals(currentResponses) && !currentResponses.find((r) => r.questionId === "ai-goals")) {
-          questionId = "ai-goals"
-          question = "What would you like to do with AI?"
-        } else if (!currentResponses.find((r) => r.questionId === "ai-experience")) {
-          questionId = "ai-experience"
-          question = "What's your level of experience with building AI in Africa?"
-        } else if (
-          shouldShowComputeExperience(currentResponses) &&
-          !currentResponses.find((r) => r.questionId === "compute-experience")
-        ) {
-          questionId = "compute-experience"
-          question = "What's your experience with compute?"
-        } else if (
-          shouldShowTeamSize(currentResponses) &&
-          !currentResponses.find((r) => r.questionId === "team-size")
-        ) {
-          questionId = "team-size"
-          question = "What's your team size for this AI project?"
-        } else if (!currentResponses.find((r) => r.questionId === "primary-need")) {
-          questionId = "primary-need"
-          question = "What do you need most right now?"
-        }
+      } else if (!responses.find((r) => r.questionId === "primary-need")) {
+        questionId = "primary-need"
+        question = "What do you need most right now?"
+      } else if (!responses.find((r) => r.questionId === "full-name")) {
+        questionId = "full-name"
+        question = "What's your full name?"
       }
 
       const newResponse: UserResponse = {
@@ -648,53 +626,29 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
     }
   }
 
+  const isReadyForFullNameQuestion = (currentResponses: UserResponse[]) => {
+    if (currentResponses.find((r) => r.questionId === "full-name")) {
+      return false
+    }
+
+    if (isInfrastructureBuilder(currentResponses)) {
+      return Boolean(currentResponses.find((r) => r.questionId === "primary-need"))
+    }
+
+    return Boolean(
+      currentResponses.find((r) => r.questionId === "role") &&
+        currentResponses.find((r) => r.questionId === "build-goal") &&
+        currentResponses.find((r) => r.questionId === "ai-journey") &&
+        currentResponses.find((r) => r.questionId === "primary-need"),
+    )
+  }
+
   const isReadyForEmailQuestion = (currentResponses: UserResponse[]) => {
     if (currentResponses.find((r) => r.questionId === "email")) {
       return false
     }
 
-    if (isInfrastructureBuilder(currentResponses)) {
-      return Boolean(
-        currentResponses.find((r) => r.questionId === "build-goal") &&
-          currentResponses.find((r) => r.questionId === "primary-need"),
-      )
-    }
-
-    const hasRole = currentResponses.find((r) => r.questionId === "role")
-    const hasBuildGoal = currentResponses.find((r) => r.questionId === "build-goal")
-    const hasAIJourney = currentResponses.find((r) => r.questionId === "ai-journey")
-    const hasPrimaryNeed = currentResponses.find((r) => r.questionId === "primary-need")
-    const hasAIExperience = currentResponses.find((r) => r.questionId === "ai-experience")
-    const hasLearningHistory = currentResponses.find((r) => r.questionId === "learning-history")
-    const hasAIGoals = currentResponses.find((r) => r.questionId === "ai-goals")
-    const hasComputeExperience = currentResponses.find((r) => r.questionId === "compute-experience")
-    const hasTeamSize = currentResponses.find((r) => r.questionId === "team-size")
-
-    if (!hasRole || !hasBuildGoal || !hasAIJourney || !hasAIExperience) {
-      return false
-    }
-
-    if (shouldShowLearningHistory(currentResponses) && !hasLearningHistory) {
-      return false
-    }
-
-    if (shouldShowAIGoals(currentResponses) && !hasAIGoals) {
-      return false
-    }
-
-    if (shouldShowComputeExperience(currentResponses) && !hasComputeExperience) {
-      return false
-    }
-
-    if (shouldShowTeamSize(currentResponses) && !hasTeamSize) {
-      return false
-    }
-
-    if (!hasPrimaryNeed) {
-      return false
-    }
-
-    return true
+    return Boolean(currentResponses.find((r) => r.questionId === "full-name"))
   }
 
   const handleInputSubmit = (value: string) => {
@@ -720,10 +674,18 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
           } else if (!hasBuildGoal) {
             questionId = "build-goal"
             question = "What do you want to build or create with AI?"
+          } else if (isReadyForFullNameQuestion(responses)) {
+            questionId = "full-name"
+            question = "What's your full name?"
           } else if (isReadyForEmailQuestion(responses)) {
             questionId = "email"
             question = "What's your email address?"
           }
+        }
+
+        if (questionId === "full-name" && value.trim().length < 2) {
+          addMessage("Please enter your full name.", "bot")
+          return
         }
 
         if (questionId === "email") {
@@ -758,6 +720,10 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
             proceedToNextStep(newResponses)
           }, 300)
         } else if (questionId === "email") {
+          setTimeout(() => {
+            proceedToNextStep(newResponses)
+          }, 500)
+        } else if (questionId === "full-name") {
           setTimeout(() => {
             proceedToNextStep(newResponses)
           }, 500)
@@ -796,57 +762,46 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
       window.scrollTo({ top: 0, behavior: "smooth" })
     }
 
-    // Check if user is Infrastructure Builder - if so, skip to completion after build-goal
     if (isInfrastructureBuilder(currentResponses)) {
       const hasBuildGoal = currentResponses.find((r) => r.questionId === "build-goal")
       const hasPrimaryNeed = currentResponses.find((r) => r.questionId === "primary-need")
-      if (hasBuildGoal) {
-        if (!hasPrimaryNeed) {
-          showPrimaryNeedQuestion()
-          return
-        }
-        if (!hasEmail) {
-          showEmailQuestion()
-          return
-        }
-        goToReview(currentResponses)
-        return
-      } else {
+      const hasFullName = currentResponses.find((r) => r.questionId === "full-name")
+      if (!hasBuildGoal) {
         showBuildGoalQuestion()
         return
       }
+      if (!hasPrimaryNeed) {
+        showPrimaryNeedQuestion()
+        return
+      }
+      if (!hasFullName) {
+        showFullNameQuestion()
+        return
+      }
+      if (!hasEmail) {
+        showEmailQuestion()
+        return
+      }
+      goToReview(currentResponses)
+      return
     }
 
-    // Check what questions we still need to ask in order for non-Infrastructure Builders
     const hasRole = currentResponses.find((r) => r.questionId === "role")
     const hasBuildGoal = currentResponses.find((r) => r.questionId === "build-goal")
     const hasAIJourney = currentResponses.find((r) => r.questionId === "ai-journey")
-    const hasAIExperience = currentResponses.find((r) => r.questionId === "ai-experience")
-    const hasLearningHistory = currentResponses.find((r) => r.questionId === "learning-history")
-    const hasAIGoals = currentResponses.find((r) => r.questionId === "ai-goals")
-    const hasComputeExperience = currentResponses.find((r) => r.questionId === "compute-experience")
-    const hasTeamSize = currentResponses.find((r) => r.questionId === "team-size")
     const hasPrimaryNeed = currentResponses.find((r) => r.questionId === "primary-need")
+    const hasFullName = currentResponses.find((r) => r.questionId === "full-name")
 
-    // Follow the specific order: country -> role -> build-goal -> ai-journey -> then conditional questions
     if (!hasRole) {
-      showRoleQuestion() // Show immediately without delay
+      showRoleQuestion()
     } else if (!hasBuildGoal) {
       showBuildGoalQuestion()
     } else if (!hasAIJourney) {
       showAIJourneyQuestion()
-    } else if (!hasAIExperience) {
-      showAIExperienceQuestion()
-    } else if (shouldShowLearningHistory(currentResponses) && !hasLearningHistory) {
-      showLearningHistoryQuestion()
-    } else if (shouldShowAIGoals(currentResponses) && !hasAIGoals) {
-      showAIGoalsQuestion()
-    } else if (shouldShowComputeExperience(currentResponses) && !hasComputeExperience) {
-      showComputeExperienceQuestion()
-    } else if (shouldShowTeamSize(currentResponses) && !hasTeamSize) {
-      showTeamSizeQuestion()
     } else if (!hasPrimaryNeed) {
       showPrimaryNeedQuestion()
+    } else if (!hasFullName) {
+      showFullNameQuestion()
     } else if (!hasEmail) {
       showEmailQuestion()
     } else {
@@ -869,6 +824,7 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          phase: 1,
           responses,
           sessionId,
           email,
@@ -884,13 +840,6 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
         setOtpError(result.emailError)
       } else {
         throw new Error(result.error ?? "Unable to create your profile")
-      }
-
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(
-          "ask-hub-pending-results",
-          JSON.stringify({ responses, sessionId, trigger }),
-        )
       }
 
       setShowReview(false)
@@ -974,6 +923,13 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
     }, 200)
   }
 
+  const showFullNameQuestion = () => {
+    setTimeout(() => {
+      addMessage("What's your full name?", "bot", undefined, "text")
+      setCurrentQuestionAnswered(false)
+    }, 200)
+  }
+
   const showEmailQuestion = () => {
     setTimeout(() => {
       addMessage(
@@ -998,14 +954,13 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
   }, [])
 
   if (isComplete) {
+    const email = responses.find((r) => r.questionId === "email")?.answerText
     return (
-      <RecommendationResults
-        responses={responses}
-        sessionId={sessionId}
+      <PhaseOneComplete
+        email={email}
+        emailSent={otpSent}
+        emailError={otpError}
         onBack={onBack}
-        isExistingUser={isExistingUser}
-        otpSent={otpSent}
-        otpError={otpError}
       />
     )
   }
@@ -1030,11 +985,7 @@ export function ConversationFlow({ sessionId, trigger, onBack }: ConversationFlo
           <div className="flex items-center justify-between">
             {/* Left - AI Hub Logo */}
             <div className="flex items-center">
-              <img
-                src="/images/ai-hub-logo-updated.png"
-                alt="AI Hub for Sustainable Development"
-                className="h-12 w-auto"
-              />
+              <AiHubLogoLink />
             </div>
 
             {/* Mobile Menu Button */}

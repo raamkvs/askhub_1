@@ -5,7 +5,9 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { AiHubLogoLink } from "@/components/ai-hub-logo-link"
 import { createClient } from "@/lib/supabase/client"
+import { resolvePostAuthPath } from "@/lib/auth/post-auth-path"
 
 export default function SignInPage() {
   const router = useRouter()
@@ -27,7 +29,6 @@ export default function SignInPage() {
       })
 
       if (signInError) {
-        console.log("[SIGNIN] ✗ signInWithPassword error:", signInError.message)
         setError(
           signInError.message === "Invalid login credentials"
             ? "Incorrect email or password. Please try again."
@@ -36,8 +37,8 @@ export default function SignInPage() {
         return
       }
 
-      console.log("[SIGNIN] ✓ Signed in — redirecting to /my-results")
-      router.push("/my-results")
+      const path = await resolvePostAuthPath()
+      router.push(path)
       router.refresh()
     } catch (err) {
       console.error("[SIGNIN] ✗ Unexpected error:", err)
@@ -52,11 +53,7 @@ export default function SignInPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex justify-center">
-          <img
-            src="/images/ai-hub-logo-updated.png"
-            alt="AI Hub for Sustainable Development"
-            className="h-12 w-auto"
-          />
+          <AiHubLogoLink />
         </div>
 
         <div className="rounded-lg border border-gray-200 p-6 shadow-sm">

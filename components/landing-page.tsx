@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { CheckCircle, ArrowRight, Menu, X, ChevronDown } from "lucide-react"
 import { SignupModal } from "@/components/signup-modal"
 import { AuthNavActions } from "@/components/auth-nav-actions"
+import { AiHubLogoLink } from "@/components/ai-hub-logo-link"
 import { useAuth } from "@/hooks/use-auth"
 
 interface LandingPageProps {
@@ -68,11 +69,7 @@ export function LandingPage({ onLaunchCoach }: LandingPageProps) {
           <div className="flex items-center justify-between">
             {/* Left - AI Hub Logo */}
             <div className="flex items-center">
-              <img
-                src="/images/ai-hub-logo-updated.png"
-                alt="AI Hub for Sustainable Development"
-                className="h-12 w-auto"
-              />
+              <AiHubLogoLink />
             </div>
 
             {/* Mobile Menu Button */}

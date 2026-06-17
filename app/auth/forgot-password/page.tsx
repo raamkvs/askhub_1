@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { AiHubLogoLink } from "@/components/ai-hub-logo-link"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -44,11 +45,7 @@ export default function ForgotPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-white px-4 font-montserrat">
       <div className="w-full max-w-md">
         <div className="mb-8 flex justify-center">
-          <img
-            src="/images/ai-hub-logo-updated.png"
-            alt="AI Hub for Sustainable Development"
-            className="h-12 w-auto"
-          />
+          <AiHubLogoLink />
         </div>
 
         <div className="rounded-lg border border-gray-200 p-6 shadow-sm">

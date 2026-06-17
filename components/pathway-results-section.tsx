@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { LogOut, X } from "lucide-react"
+import { X } from "lucide-react"
 import type { PathwayResult } from "@/lib/pathway"
 import { getPathwayDisplay } from "@/lib/pathway-config"
 import {
-  formatNameFromEmail,
+  getDisplayName,
   getInitials,
   getProfileSubtitle,
   getProfileTags,
@@ -13,7 +13,6 @@ import {
 import type { MatchedResource } from "@/lib/matching/types"
 import type { IntakeResponse } from "@/lib/intake/responses"
 import { CuratedResourceCard } from "@/components/curated-resource-card"
-import { useAuth } from "@/hooks/use-auth"
 
 interface PathwayResultsSectionProps {
   pathway: PathwayResult
@@ -37,9 +36,8 @@ export function PathwayResultsSection({
   const [isOtherCountry, setIsOtherCountry] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { logout } = useAuth()
   const display = getPathwayDisplay(pathway.type)
-  const displayName = formatNameFromEmail(email)
+  const displayName = getDisplayName(responses, email)
   const subtitle = getProfileSubtitle(responses)
   const tags = getProfileTags(responses)
 
@@ -115,14 +113,6 @@ export function PathwayResultsSection({
                 {tag}
               </span>
             ))}
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1.5 text-sm font-montserrat font-medium text-gray-700 transition-colors hover:border-[#0071BC] hover:text-[#0071BC]"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </button>
           </div>
         </div>
       ) : null}
@@ -149,8 +139,8 @@ export function PathwayResultsSection({
 
         {isOtherCountry ? (
           <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-relaxed text-[#4A4D52]">
-            We surface resources available globally to you. The full priority-country resource set unlocks for innovators
-            based in our 18 partner countries.
+            Resources shown here are available globally to you. Country-specific and Africa-restricted programmes are
+            not included for your location. Innovators in our 18 partner countries see a broader resource set.
           </div>
         ) : null}
 

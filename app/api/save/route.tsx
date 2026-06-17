@@ -1,53 +1,29 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server"
+import { syncIntakeToAirtable } from "@/lib/airtable/intake-sync"
+import { normalizeResponses } from "@/lib/intake/responses"
 
+/** Legacy endpoint — prefer sync via /api/intake/complete */
 export async function POST(req: Request) {
-  const { responses, sessionId, email } = await req.json();
+  const { responses, sessionId, email, userId, phase = 1, airtableRecordId } = await req.json()
+  const normalized = normalizeResponses(responses)
 
-  const fieldMap: Record<string, string> = {
-    country: "fldpmAdlHqwe9PsCS",
-    role: "fldO5uCGgefs7gpRa",
-    "build-goal": "fldXVQk3ouHwAr3hx",
-    "ai-journey": "fld05GrR98I7o28pc",
-    "ai-experience": "fldbrAiv6dWIXAVwn",
-    "learning-history": "fldn21ariYL7s0moq",
-    "ai-goals": "fldjAyOibMPBESy3Y",
-    "team-size": "fld0btfsVQ4gCxiO1",
-    "compute-experience": "fld1YpOi7NBcyO59C",
-  };
-
-  const fields: Record<string, any> = {
-    fldPSqbodvtYcTqc1: sessionId,
-    fldrxV7JnxDL7HR1s: email || `${sessionId}@placeholder.ai`, // Use actual email if provided
-    fldDEhp5uQe7DHjIk: new Date().toISOString(),
-  };
-
-  responses.forEach((r: any) => {
-    const fieldId = fieldMap[r.questionId];
-    if (fieldId) {
-      fields[fieldId] = r.answerText;
-    }
-  });
+  if (!sessionId || normalized.length === 0) {
+    return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
+  }
 
   try {
-    const res = await fetch(
-      `https://api.airtable.com/v0/${process.env.NEXT_PRIVATE_AIRTABLE_BASE_ID}/${process.env.NEXT_PRIVATE_AIRTABLE_TABLE_NAME}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.NEXT_PRIVATE_AIRTABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fields, typecast: true }),
-      },
-    );
+    const result = await syncIntakeToAirtable({
+      responses: normalized,
+      sessionId,
+      email: email || `${sessionId}@placeholder.ai`,
+      userId: userId || "unknown",
+      phase: phase === 2 ? 2 : 1,
+      airtableRecordId,
+    })
 
-    if (!res.ok) throw new Error(await res.text());
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, recordId: result.recordId })
   } catch (error) {
-    console.error("Airtable save failed", error);
-    return NextResponse.json(
-      { success: false, error: String(error) },
-      { status: 500 },
-    );
+    console.error("Airtable save failed", error)
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
 }

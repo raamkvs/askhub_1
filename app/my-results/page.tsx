@@ -13,7 +13,7 @@ interface IntakeSession {
   } | null
 }
 
-type PageState = "loading" | "ready" | "no-results" | "unauthenticated"
+type PageState = "loading" | "ready" | "no-results" | "unauthenticated" | "onboarding"
 
 export default function MyResultsPage() {
   const router = useRouter()
@@ -33,6 +33,11 @@ export default function MyResultsPage() {
         if (!result.success || !result.session) {
           console.error("[MY-RESULTS] No session:", result.error)
           setState("no-results")
+          return
+        }
+
+        if (!result.onboardingComplete) {
+          setState("onboarding")
           return
         }
 
@@ -58,14 +63,15 @@ export default function MyResultsPage() {
     void load()
   }, [])
 
-  // Redirect if unauthenticated
   useEffect(() => {
     if (state === "unauthenticated") {
       router.replace("/auth/signin")
+    } else if (state === "onboarding") {
+      router.replace("/onboarding")
     }
   }, [state, router])
 
-  if (state === "loading" || state === "unauthenticated") {
+  if (state === "loading" || state === "unauthenticated" || state === "onboarding") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#0071BC] border-t-transparent" />

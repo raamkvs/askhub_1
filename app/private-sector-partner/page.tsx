@@ -7,7 +7,7 @@ import Link from "next/link"
 export default function PrivateSectorPartnerPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showProgrammesDropdown, setShowProgrammesDropdown] = useState(false)
-  const dropdownRef = useRef(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Scroll functions for navigation
   const scrollToComputeAccelerator = () => {

@@ -36,6 +36,12 @@ export function formatNameFromEmail(email: string | undefined): string {
     .join(" ")
 }
 
+export function getDisplayName(responses: IntakeResponse[], email?: string): string {
+  const fullName = getResponseValue(responses, "full-name")
+  if (fullName) return fullName
+  return formatNameFromEmail(email)
+}
+
 export function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return "AH"

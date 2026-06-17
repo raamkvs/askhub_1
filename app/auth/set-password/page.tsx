@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createClient } from "@/lib/supabase/client"
+import { resolvePostAuthPath } from "@/lib/auth/post-auth-path"
 import { PasswordRequirementsList } from "@/components/password-requirements-list"
 import { getPasswordValidationError, isPasswordValid } from "@/lib/auth/password"
 
@@ -144,8 +145,9 @@ function PasswordForm() {
       })
       const result = await res.json()
       if (!res.ok || !result.success) throw new Error(result.error || "Unable to save password")
-      console.log("[SET-PASSWORD] ✓ Password saved — redirecting to /my-results")
-      router.push("/my-results")
+      console.log("[SET-PASSWORD] ✓ Password saved — resolving redirect")
+      const path = await resolvePostAuthPath()
+      router.push(path)
       router.refresh()
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to save password")

@@ -8,7 +8,7 @@ export default function ComputeAcceleratorPage() {
   const [showSignupModal, setShowSignupModal] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showProgrammesDropdown, setShowProgrammesDropdown] = useState(false)
-  const dropdownRef = useRef(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Scroll functions for navigation
   const scrollToComputeAccelerator = () => {
@@ -27,8 +27,8 @@ export default function ComputeAcceleratorPage() {
   }
 
   useEffect(() => {
-    function handleClickOutside(event: any) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowProgrammesDropdown(false)
       }
     }

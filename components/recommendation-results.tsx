@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { BookOpen, ExternalLink, FileText } from "lucide-react"
+import { FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AuthModal } from "@/components/auth-modal"
 import { HelpOptionsSection } from "@/components/help-options-section"
@@ -17,7 +17,6 @@ interface RecommendationResultsProps {
   responses: IntakeResponse[]
   sessionId: string
   onBack: () => void
-  isExistingUser?: boolean
   otpSent?: boolean
   otpError?: string
   suppressAuthModal?: boolean
@@ -104,17 +103,15 @@ export function RecommendationResults({
       />
 
       <div className="container mx-auto px-6 py-8 pb-16 font-montserrat">
-        {!skipJourneySummary ? (
-          <div className="mb-6">
-            <Button
-              variant="outline"
-              onClick={onBack}
-              className="rounded-lg bg-transparent font-montserrat font-bold"
-            >
-              Back to homepage
-            </Button>
-          </div>
-        ) : null}
+        <div className="mb-6">
+          <Button
+            variant="outline"
+            onClick={onBack}
+            className="rounded-lg bg-transparent font-montserrat font-bold"
+          >
+            Back to homepage
+          </Button>
+        </div>
 
         <div className="mx-auto max-w-5xl space-y-8">
           {!skipJourneySummary ? (
@@ -126,9 +123,7 @@ export function RecommendationResults({
                 <div className="flex-1">
                   <div className="mb-6 rounded-lg bg-[#D9F1FF] p-4">
                     <p className="font-montserrat leading-relaxed text-[#6C6F75]">
-                      {pathway.isFromAfrica
-                        ? pathwayDisplay.coachMessage
-                        : "Thank you for your interest in AskHub!"}
+                      {pathwayDisplay.coachMessage}
                     </p>
                   </div>
                 </div>
@@ -158,43 +153,14 @@ export function RecommendationResults({
             </>
           ) : null}
 
-          {!pathway.isFromAfrica ? (
-            <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-              <div className="border-b border-[#0071BC] bg-[#D9F1FF] p-4">
-                <h2 className="flex items-center gap-2 font-montserrat text-xl font-bold text-black">
-                  <BookOpen className="h-5 w-5 text-[#0071BC]" />
-                  Not Yet Available in Your Region
-                </h2>
-              </div>
-              <div className="p-6">
-                <p className="mb-6 font-montserrat leading-relaxed text-[#6C6F75]">
-                  It&apos;s great that you&apos;re interested in building and using AI! However, I am not available in
-                  your country yet. Please register with your email address and I will notify you when I can be fully
-                  available to you.
-                </p>
-                {!isAuthenticated ? (
-                  <div className="text-center">
-                    <Button
-                      onClick={() => setShowAuthModal(true)}
-                      className="rounded-lg bg-[#1976d2] font-montserrat font-bold text-white hover:bg-[#1565c0]"
-                    >
-                      Register for Updates
-                      <ExternalLink className="ml-2 h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            <PathwayResultsSection
-              pathway={pathway}
-              responses={normalizedResponses}
-              email={intakeEmail}
-              secondaryNeed={secondaryNeed}
-              showWelcomeBanner={skipJourneySummary}
-              showProfileHeader={skipJourneySummary}
-            />
-          )}
+          <PathwayResultsSection
+            pathway={pathway}
+            responses={normalizedResponses}
+            email={intakeEmail}
+            secondaryNeed={secondaryNeed}
+            showWelcomeBanner={skipJourneySummary}
+            showProfileHeader={skipJourneySummary}
+          />
 
           <HelpOptionsSection
             selectedHelpOption={selectedHelpOption}

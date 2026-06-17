@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { getProfileByUserId } from "@/lib/auth/profile"
 
 export async function GET() {
   try {
@@ -13,19 +15,31 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 })
     }
 
+    const admin = createAdminClient()
+    const profile = await getProfileByUserId(admin, user.id)
+
     const { data, error } = await supabase
       .from("intake_sessions")
       .select("session_id, trigger, responses, pathway, resource_state, updated_at")
       .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(1)
       .maybeSingle()
 
     if (error) {
       throw error
     }
 
-    return NextResponse.json({ success: true, session: data })
+    return NextResponse.json({
+      success: true,
+      session: data,
+      onboardingComplete: Boolean(profile?.onboarding_complete),
+      profile: profile
+        ? {
+            fullName: profile.full_name,
+            country: profile.country,
+            email: profile.email,
+          }
+        : null,
+    })
   } catch (error) {
     console.error("Failed to load intake session:", error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })

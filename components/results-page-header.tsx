@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { ChevronDown } from "lucide-react"
 import { AuthNavActions } from "@/components/auth-nav-actions"
+import { AiHubLogoLink } from "@/components/ai-hub-logo-link"
 
 interface ResultsPageHeaderProps {
   onBack: () => void
@@ -47,11 +48,7 @@ export function ResultsPageHeader({
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <img
-              src="/images/ai-hub-logo-updated.png"
-              alt="AI Hub for Sustainable Development"
-              className="h-12 w-auto"
-            />
+            <AiHubLogoLink />
           </div>
 
           <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 md:flex">
